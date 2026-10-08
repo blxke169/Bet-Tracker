@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -120,6 +121,26 @@ input,textarea{caret-color:#35e4bc}::selection{background:#6950ad;color:#fff}
 st.markdown('''<style>
 .sl-brand{display:flex;align-items:center;gap:13px;padding:8px 0 14px;font-size:29px}.sl-brand b{color:#a58bff;font-weight:750}.sl-brand img{border-radius:14px}.sl-brand small{display:block;font-size:10px;font-weight:550;letter-spacing:2.8px;color:#a9b7d0;margin-top:3px}.sl-brand img:hover{box-shadow:0 0 24px #35e4bc24;transition:box-shadow .2s ease}@media(prefers-reduced-motion:reduce){.sl-brand img{transition:none!important}}
 </style>''',unsafe_allow_html=True)
+
+st.markdown("""<style>
+.st-key-sport_navigation [role="radiogroup"],.st-key-entry_sport_buttons [role="radiogroup"],.st-key-journal_sport_buttons [role="radiogroup"]{display:flex;flex-wrap:nowrap!important;gap:9px!important;overflow-x:auto;padding:7px 3px 13px!important;scrollbar-width:thin;scrollbar-color:#35476b transparent}
+.st-key-sport_navigation [role="radiogroup"] label,.st-key-entry_sport_buttons [role="radiogroup"] label,.st-key-journal_sport_buttons [role="radiogroup"] label{flex-shrink:0;margin:0!important;min-height:46px;padding:10px 18px!important;background:#121d32;border:1px solid #2b3b58!important;border-radius:999px!important;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.st-key-entry_sport_buttons [role="radiogroup"] label>div:first-child,.st-key-journal_sport_buttons [role="radiogroup"] label>div:first-child,.st-key-wager_buttons [role="radiogroup"] label>div:first-child{display:none}
+.st-key-sport_navigation [role="radiogroup"] label p,.st-key-entry_sport_buttons [role="radiogroup"] label p,.st-key-journal_sport_buttons [role="radiogroup"] label p{color:#b9c9e2!important;font-weight:600;font-size:13px}
+.st-key-sport_navigation [role="radiogroup"] label:has(input:checked),.st-key-entry_sport_buttons [role="radiogroup"] label:has(input:checked),.st-key-journal_sport_buttons [role="radiogroup"] label:has(input:checked){background:linear-gradient(125deg,#153e42,#193b51)!important;border:1px solid #35e4bc!important;box-shadow:0 0 0 2px #35e4bc12,0 5px 18px #35e4bc12}
+.st-key-sport_navigation label:has(input:checked) p,.st-key-entry_sport_buttons label:has(input:checked) p,.st-key-journal_sport_buttons label:has(input:checked) p{color:#83ffe0!important}
+.st-key-wager_buttons{margin:12px 0 18px}
+.st-key-wager_buttons [role="radiogroup"]{display:flex!important;flex-wrap:nowrap!important;gap:5px!important;background:#0c1424;padding:6px!important;border:1px solid #293a57;border-radius:18px;width:fit-content;max-width:100%}
+.st-key-wager_buttons [role="radiogroup"] label{display:flex;align-items:center;justify-content:center;min-height:48px;min-width:120px;padding:12px 22px!important;margin:0!important;border:1px solid transparent;border-radius:13px;transition:background .18s ease,box-shadow .18s ease,transform .18s ease}
+.st-key-wager_buttons label p{color:#a9b7d0!important;font-weight:600}
+.st-key-wager_buttons label:has(input:checked){background:linear-gradient(120deg,#554080,#2e4f75)!important;border-color:#a58bff70!important;box-shadow:0 3px 15px #00000035}
+.st-key-wager_buttons label:has(input:checked) p{color:#f4efff!important}
+@media(hover:hover){.st-key-sport_navigation label:hover,.st-key-entry_sport_buttons label:hover,.st-key-journal_sport_buttons label:hover{transform:translateY(-2px);border-color:#607ca5!important;background:#1c2d47!important}.st-key-wager_buttons label:hover{background:#1e2941}}
+.st-key-sport_navigation label:has(input:focus-visible),.st-key-entry_sport_buttons label:has(input:focus-visible),.st-key-journal_sport_buttons label:has(input:focus-visible),.st-key-wager_buttons label:has(input:focus-visible){outline:2px solid #a58bff;outline-offset:3px}
+@media(max-width:500px){.st-key-wager_buttons [role="radiogroup"]{width:100%}.st-key-wager_buttons [role="radiogroup"] label{flex:1;min-width:0;padding:12px!important}.st-key-sport_navigation label,.st-key-entry_sport_buttons label,.st-key-journal_sport_buttons label{padding:10px 15px!important}}
+@media(prefers-reduced-motion:reduce){.st-key-sport_navigation label,.st-key-entry_sport_buttons label,.st-key-journal_sport_buttons label,.st-key-wager_buttons label{transition:none!important;transform:none!important}}
+
+</style>""",unsafe_allow_html=True)
 
 DB = Path("betting.db")
 SPORTS = ["NBA","NFL","NHL","MLB","NCAAB","NCAAF","AFL","Soccer","Tennis","Horses","Greyhounds"]
@@ -1397,11 +1418,17 @@ if page=="Bankroll":
 if page in ("Log Bet","Multis"):
     st.markdown("<div class='page-kicker'>Track your wagers</div><div class='page-title'>Log Bet / Multi</div>",unsafe_allow_html=True)
     st.caption("Log a single or a multi. Multi legs are stored individually so you can later see which markets are helping or hurting your parlays.")
-    wager_type=st.radio("Wager type",["Single","Multi / Parlay"],horizontal=True,index=1 if page=="Multis" else 0,key="wager_type")
+    if st.session_state.get("wager_page")!=page:
+        st.session_state["wager_type"]="Multi / Parlay" if page=="Multis" else "Single"
+        st.session_state["wager_page"]=page
+    with st.container(key="wager_buttons"):
+        wager_type=st.radio("Wager type",["Single","Multi / Parlay"],horizontal=True,label_visibility="collapsed",key="wager_type")
     if wager_type=="Single":
+        with st.container(key="entry_sport_buttons"):
+            sport=st.radio("Sport",SPORTS,horizontal=True,key="ssport",label_visibility="collapsed")
         c1,c2,c3=st.columns(3)
         event_date=c1.date_input("Event date",date.today(),key="sdate")
-        sport=c2.selectbox("Sport",SPORTS,key="ssport")
+
         league=c3.text_input("League",value="",key="sleague")
 
         c1,c2,c3=st.columns(3)
@@ -2137,9 +2164,9 @@ if page=="Bet Journal":
     table="bets" if mode=="Real bets" else "paper_bets"
     st.caption("Paper bets are hypothetical and excluded from your real bankroll and account performance.") if mode=="Paper bets" else st.caption("Real bets use the same database as your existing Log Bet and Results pages.")
     with st.expander("＋ Log a bet",expanded=True):
-        j1,j2=st.columns(2)
-        jsport=j1.selectbox("Sport",SPORTS,key="journal_sport")
-        jtype=j2.selectbox("Bet type",BET_TYPES[jsport],key="journal_type")
+        with st.container(key="journal_sport_buttons"):
+            jsport=st.radio("Sport",SPORTS,horizontal=True,key="journal_sport",label_visibility="collapsed")
+        jtype=st.selectbox("Bet type",BET_TYPES[jsport],key="journal_type")
         with st.form("journal_log"):
             jdate=st.date_input("Event date",date.today(),key="journal_date")
             jevent=st.text_input("Event / race",key="journal_event")
@@ -2218,3 +2245,4 @@ if page=="Bet Journal":
             finally:c.close()
             notify_saved("Close and review saved")
         st.caption("If the line changed, record it as line movement; price CLV is left blank unless you confirm the odds are for the exact same market. Original reasoning is retained.")
+
