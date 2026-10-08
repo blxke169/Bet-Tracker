@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -6,7 +7,7 @@ import sqlite3, os, json, math, requests, html
 from datetime import datetime, date
 from pathlib import Path
 
-st.set_page_config(page_title="EdgeLab | Bet Tracker", page_icon="📈", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="StakeLab | Bet Tracker", page_icon="🧪", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown(r"""
 <style>
@@ -116,6 +117,10 @@ st.markdown("""<style>\n:root{--bg:#080e1c;--panel:#121c30;--line:#263651;--text
 .stButton>button:hover{background:#243550;box-shadow:0 0 14px #65b4ff1a}
 input,textarea{caret-color:#35e4bc}::selection{background:#6950ad;color:#fff}
 </style>""",unsafe_allow_html=True)
+
+st.markdown('''<style>
+.sl-brand{display:flex;align-items:center;gap:13px;padding:8px 0 14px;font-size:29px}.sl-brand b{color:#a58bff;font-weight:750}.sl-brand img{border-radius:14px}.sl-brand small{display:block;font-size:10px;font-weight:550;letter-spacing:2.8px;color:#a9b7d0;margin-top:3px}.sl-brand img:hover{box-shadow:0 0 24px #35e4bc24;transition:box-shadow .2s ease}@media(prefers-reduced-motion:reduce){.sl-brand img{transition:none!important}}
+</style>''',unsafe_allow_html=True)
 
 DB = Path("betting.db")
 SPORTS = ["NBA","NFL","NHL","MLB","NCAAB","NCAAF","AFL","Soccer","Tennis","Horses","Greyhounds"]
@@ -238,7 +243,7 @@ def latest_context(sport, search_text="", limit=8):
 
 # ---------------- UNIFIED SPORTS DATA LAYER ----------------
 # ESPN's public site endpoints are useful free starting sources but are not a
-# contracted/guaranteed API. EdgeLab labels the source accurately and never
+# contracted/guaranteed API. StakeLab labels the source accurately and never
 # treats absent fields as verified facts.
 
 ESPN_FEEDS = {
@@ -278,7 +283,7 @@ def fetch_espn_scoreboard(sport, day=None, league_code=None):
     else:
         return []
     url=f"https://site.api.espn.com/apis/site/v2/sports/{category}/{league}/scoreboard?dates={day_token}"
-    r=requests.get(url,timeout=18,headers={"User-Agent":"EdgeLab/1.0"})
+    r=requests.get(url,timeout=18,headers={"User-Agent":"StakeLab/1.0"})
     r.raise_for_status()
     raw=r.json()
     out=[]
@@ -316,7 +321,7 @@ def fetch_espn_summary(sport, event_id, league_code=None):
     else:
         return {}
     url=f"https://site.api.espn.com/apis/site/v2/sports/{category}/{league}/summary?event={event_id}"
-    r=requests.get(url,timeout=20,headers={"User-Agent":"EdgeLab/1.0"})
+    r=requests.get(url,timeout=20,headers={"User-Agent":"StakeLab/1.0"})
     r.raise_for_status()
     return r.json()
 
@@ -407,7 +412,7 @@ def _extract_receiving_line(player_obj):
 def _nflverse_player_assets():
     """Discover current nflverse player-stat assets from the official GitHub release."""
     api="https://api.github.com/repos/nflverse/nflverse-data/releases/tags/player_stats"
-    r=requests.get(api,timeout=20,headers={"User-Agent":"EdgeLab/1.0","Accept":"application/vnd.github+json"})
+    r=requests.get(api,timeout=20,headers={"User-Agent":"StakeLab/1.0","Accept":"application/vnd.github+json"})
     r.raise_for_status()
     return {
         a.get("name"): a.get("browser_download_url")
@@ -842,7 +847,7 @@ def sync_espn_sport(sport, days=1, league_code=None, include_summary=True, max_e
 def fetch_squiggle_games(year=None):
     year=int(year or date.today().year)
     url=f"https://api.squiggle.com.au/?q=games;year={year}"
-    r=requests.get(url,headers={"User-Agent":"EdgeLab-Betting-Tracker/1.0"},timeout=18)
+    r=requests.get(url,headers={"User-Agent":"StakeLab-Betting-Tracker/1.0"},timeout=18)
     r.raise_for_status()
     games=r.json().get("games",[])
     return sorted(games,key=lambda x:str(x.get("date","")),reverse=True)
@@ -851,7 +856,7 @@ def fetch_configured_json(url_secret, key_secret=None, params=None):
     url=_secret(url_secret)
     if not url:
         return None
-    headers={"User-Agent":"EdgeLab/1.0","Accept":"application/json"}
+    headers={"User-Agent":"StakeLab/1.0","Accept":"application/json"}
     key=_secret(key_secret) if key_secret else ""
     if key:
         headers["Authorization"]=f"Bearer {key}"
@@ -923,7 +928,7 @@ def fetch_nba_scoreboard(day=None):
 def fetch_afl_games(year=None):
     year=int(year or date.today().year)
     url=f"https://api.squiggle.com.au/?q=games;year={year}"
-    r=requests.get(url,headers={"User-Agent":"EdgeLab-Betting-Tracker/1.0"},timeout=15); r.raise_for_status()
+    r=requests.get(url,headers={"User-Agent":"StakeLab-Betting-Tracker/1.0"},timeout=15); r.raise_for_status()
     games=r.json().get("games",[])
     games=sorted(games,key=lambda x:str(x.get("date","")),reverse=True)
     return games[:120]
@@ -982,7 +987,7 @@ def _summary():
 
 summary=_summary()
 # TOP NAVIGATION
-st.markdown("<div class='tracker-brand'>EdgeLab <span>BET TRACKER</span></div>",unsafe_allow_html=True)
+st.markdown("<div class='tracker-brand sl-brand'><img src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTdGFrZUxhYiBmbGFzayBhbmQgY2hhcnQgbG9nbyI+CjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ic2wiIHgxPSIwIiB5MT0iMSIgeDI9IjEiIHkyPSIwIj48c3RvcCBzdG9wLWNvbG9yPSIjMzVlNGJjIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTU4YmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI5MiIgaGVpZ2h0PSI5MiIgcng9IjI0IiBmaWxsPSIjMTIxYzMwIi8+CjxwYXRoIGQ9Ik0zNSAyMWgyNk0zOSAyMXYyMEwyNCA2NWMtNCA3IDAgMTIgOCAxMmgzMmM4IDAgMTItNSA4LTEyTDU3IDQxVjIxIiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjc2wpIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJtMzMgNjIgMTAtMTAgMTAgNiAxMC0xNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzVlNGJjIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI2MyIgY3k9IjQ0IiByPSIzIiBmaWxsPSIjYTU4YmZmIi8+Cjwvc3ZnPgo=' alt='StakeLab logo' width='52' height='52'><div>Stake<b>Lab</b><small>TRACK YOUR EDGE</small></div></div>",unsafe_allow_html=True)
 nav_items=["Dashboard","Log Bet","Multis","Results & Notes","Performance","Bankroll","Bet History","Today","Analyse Bet","Data Hub","Settings"]
 if "requested_nav" in st.session_state:
     st.session_state["main_nav"]=st.session_state.pop("requested_nav")
@@ -1085,7 +1090,7 @@ if page=="Today":
 
 # DASHBOARD
 if page=="Dashboard":
-    st.markdown("<div class='page-kicker'>Overview & insights</div><div class='page-title'>Dashboard</div><div class='page-copy'>Your bankroll, process quality, open exposure and latest EdgeLab signals in one view.</div>",unsafe_allow_html=True)
+    st.markdown("<div class='page-kicker'>Overview & insights</div><div class='page-title'>Dashboard</div><div class='page-copy'>Your bankroll, process quality, open exposure and latest StakeLab signals in one view.</div>",unsafe_allow_html=True)
 
     qa1,qa2,qa3=st.columns(3)
     with qa1:
@@ -1573,13 +1578,13 @@ if page=="Analyse Bet":
                 st.progress(conf_score/100)
                 st.caption(f"{conf_score}/100 · " + " · ".join(conf_reasons))
         elif asport in ("NFL","NBA","NHL","MLB","NCAAB","NCAAF","Soccer","Tennis") and aselection.strip():
-            st.caption("No exact recent player stat rows were found automatically. EdgeLab will not mark player claims as verified unless the source returns the exact player/stat fields.")
+            st.caption("No exact recent player stat rows were found automatically. StakeLab will not mark player claims as verified unless the source returns the exact player/stat fields.")
             if player_packet and player_packet.get("diagnostic"):
                 st.warning(f"Player-data diagnostic: {player_packet.get('diagnostic')}")
         st.caption(f"Verification source: {source_status_for_sport(asport)}")
         if data_ctx:
             st.markdown("### Connected data context")
-            st.caption("Recent structured snapshots stored by EdgeLab. These are context only unless they contain the exact player/market information needed.")
+            st.caption("Recent structured snapshots stored by StakeLab. These are context only unless they contain the exact player/market information needed.")
             st.dataframe(pd.DataFrame(data_ctx)[["captured_at","event","subject","source"]],use_container_width=True,hide_index=True)
 
         found,missing,has_ctx=evidence_audit(asport,evidence,data_ctx)
@@ -1600,7 +1605,7 @@ if page=="Analyse Bet":
             else:
                 st.caption("Your write-up covers the main evidence categories.")
         if not has_ctx:
-            st.caption("EdgeLab does not currently have exact connected player/market data for this selection, so it cannot independently verify those claims yet.")
+            st.caption("StakeLab does not currently have exact connected player/market data for this selection, so it cannot independently verify those claims yet.")
 
 # RESULTS AND PERSONAL NOTES
 if page=="Results & Notes":
@@ -1641,7 +1646,7 @@ if page=="Bet History":
 # DATA SOURCES
     st.markdown("---")
     st.markdown("### Remove past bets")
-    st.caption("Delete an individual bet from EdgeLab. For multis, linked leg records are removed too.")
+    st.caption("Delete an individual bet from StakeLab. For multis, linked leg records are removed too.")
 
     delete_df = q("SELECT id,event_date,sport,event,bet_type,selection,odds,stake,result,pnl FROM bets ORDER BY event_date DESC,id DESC")
     if delete_df.empty:
@@ -1699,7 +1704,7 @@ if page=="Bet History":
 
 if page=="Data Hub":
     st.markdown("<div class='page-kicker'>Odds, stats & verification</div><div class='page-title'>Data Hub</div>",unsafe_allow_html=True)
-    st.write("EdgeLab can now store verification data for every supported sport. A claim is only marked verified when the exact supporting information exists in stored structured data.")
+    st.write("StakeLab can now store verification data for every supported sport. A claim is only marked verified when the exact supporting information exists in stored structured data.")
 
     st.markdown("### Coverage")
     coverage=pd.DataFrame([{"Sport":s,"Verification path":source_status_for_sport(s)} for s in SPORTS])
@@ -1727,7 +1732,7 @@ if page=="Data Hub":
             except Exception as ex:
                 st.error(f"{sync_sport} sync failed: {ex}")
 
-    st.caption("ESPN site endpoints are a free public starting source, not a guaranteed contracted API. EdgeLab records the source explicitly and does not invent fields that are absent.")
+    st.caption("ESPN site endpoints are a free public starting source, not a guaranteed contracted API. StakeLab records the source explicitly and does not invent fields that are absent.")
 
     st.markdown("### 2) AFL")
     a1,a2=st.columns(2)
@@ -1796,7 +1801,7 @@ if page=="Data Hub":
                 st.error(f"Greyhound import failed: {ex}")
 
     st.markdown("### 4) Odds / bookmaker layer")
-    st.info("Sportsbet prices are only treated as verified when they come from an authorized feed you configure. EdgeLab will not label scraped or unverified bookmaker prices as Sportsbet data.")
+    st.info("Sportsbet prices are only treated as verified when they come from an authorized feed you configure. StakeLab will not label scraped or unverified bookmaker prices as Sportsbet data.")
     if st.button("Fetch configured odds feed",use_container_width=True,key="odds_feed"):
         try:
             payload=fetch_configured_json("ODDS_API_URL","ODDS_API_KEY")
@@ -1847,3 +1852,4 @@ if page=="Settings":
         st.markdown("### Database")
         st.caption(f"Local database: {DB}")
         st.warning("Streamlit Community Cloud local SQLite storage may reset on redeploy/restart. Move to a persistent cloud database before relying on this for permanent history.")
+
