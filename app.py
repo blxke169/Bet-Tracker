@@ -1,5 +1,6 @@
 
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -1132,18 +1133,22 @@ icon_styles=[]
 for container,sports in [('sport_navigation',['All']+SPORTS+['Multi']),('entry_sport_buttons',SPORTS)]:
     for index,sport_name in enumerate(sports,1):
         icon_name=sport_name if sport_name in ICON_PATHS else 'layers' if sport_name=='Multi' else 'chart' if sport_name=='All' else 'plus' if sport_name=='Other' else 'ball'
-        icon_styles.append(f'.st-key-{container} [role="radiogroup"] label:nth-child({index})::before{{background-image:url("{icon_data(icon_name)}")}}')
+        icon_styles.append(f'.st-key-{container} [role="radiogroup"] > div:nth-child({index}) label::before,.st-key-{container} [role="radiogroup"] > label:nth-child({index})::before{{background-image:url("{icon_data(icon_name)}")}}')
 nav_icons=['chart','plus','layers','notes','chart','report','calendar','wallet','notes','clock','chart','database','settings']
 for index,name in enumerate(nav_icons,1):
-    icon_styles.append(f'.st-key-top_navigation [role="radiogroup"] label:nth-child({index})::before{{background-image:url("{icon_data(name)}")}}')
+    icon_styles.append(f'.st-key-top_navigation [role="radiogroup"] > div:nth-child({index}) label::before,.st-key-top_navigation [role="radiogroup"] > label:nth-child({index})::before{{background-image:url("{icon_data(name)}")}}')
 for index,name in enumerate(['ticket','layers'],1):
-    icon_styles.append(f'.st-key-wager_buttons [role="radiogroup"] label:nth-child({index})::before{{background-image:url("{icon_data(name)}")}}')
+    icon_styles.append(f'.st-key-wager_buttons [role="radiogroup"] > div:nth-child({index}) label::before,.st-key-wager_buttons [role="radiogroup"] > label:nth-child({index})::before{{background-image:url("{icon_data(name)}")}}')
 for widget,name in [('sreason','notes'),('mreason','notes'),('sstake','wallet'),('mstake','wallet')]:
     icon_styles.append(f'.st-key-{widget} [data-testid="stWidgetLabel"]::before{{content:"";display:inline-block;width:18px;height:18px;margin-right:8px;background:url("{icon_data(name)}") center/contain no-repeat}}')
 for status,name in [('won','check'),('lost','cross'),('pending','clock')]:
     icon_styles.append(f'.status-{status}::before{{content:"";display:inline-block;width:14px;height:14px;margin-right:5px;background:url("{icon_data(name)}") center/contain no-repeat;vertical-align:middle}}')
 st.markdown('''<style>
-.st-key-top_navigation [role="radiogroup"] label,.st-key-sport_navigation [role="radiogroup"] label,.st-key-entry_sport_buttons [role="radiogroup"] label,.st-key-wager_buttons [role="radiogroup"] label{display:flex!important;align-items:center;gap:8px!important}
+.st-key-top_navigation [role="radiogroup"] label,.st-key-sport_navigation [role="radiogroup"] label,.st-key-entry_sport_buttons [role="radiogroup"] label,.st-key-wager_buttons [role="radiogroup"] label{display:flex!important;align-items:center;gap:8px!important;min-width:max-content!important;width:max-content!important;white-space:nowrap!important}
+.st-key-top_navigation [role="radiogroup"],.st-key-sport_navigation [role="radiogroup"],.st-key-entry_sport_buttons [role="radiogroup"]{display:flex!important;flex-wrap:wrap!important;overflow-x:visible!important;gap:8px!important}
+.st-key-top_navigation [role="radiogroup"] > div,.st-key-sport_navigation [role="radiogroup"] > div,.st-key-entry_sport_buttons [role="radiogroup"] > div,.st-key-wager_buttons [role="radiogroup"] > div{flex:0 0 auto!important;width:auto!important;min-width:max-content!important}
+.st-key-top_navigation [role="radiogroup"] label p,.st-key-sport_navigation [role="radiogroup"] label p,.st-key-entry_sport_buttons [role="radiogroup"] label p,.st-key-wager_buttons [role="radiogroup"] label p{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;width:auto!important;margin:0!important}
+.st-key-top_navigation [role="radiogroup"] label > div:not(:has(p)),.st-key-sport_navigation [role="radiogroup"] label > div:not(:has(p)),.st-key-entry_sport_buttons [role="radiogroup"] label > div:not(:has(p)),.st-key-wager_buttons [role="radiogroup"] label > div:not(:has(p)){display:none!important}
 .st-key-top_navigation [role="radiogroup"] label::before,.st-key-sport_navigation [role="radiogroup"] label::before,.st-key-entry_sport_buttons [role="radiogroup"] label::before,.st-key-wager_buttons [role="radiogroup"] label::before{content:"";display:block;flex:0 0 20px;width:20px;height:20px;background-position:center;background-size:contain;background-repeat:no-repeat;opacity:.7}
 .st-key-sport_navigation [role="radiogroup"] label::before,.st-key-entry_sport_buttons [role="radiogroup"] label::before{width:24px;height:24px;flex-basis:24px}
 .st-key-top_navigation label:has(input:checked)::before,.st-key-sport_navigation label:has(input:checked)::before,.st-key-entry_sport_buttons label:has(input:checked)::before,.st-key-wager_buttons label:has(input:checked)::before{opacity:1;filter:drop-shadow(0 0 4px #32b5ff45)}
@@ -2465,4 +2470,5 @@ if page=="Dashboard" and selected_sport!="All":
         st.session_state['requested_nav']='Multis' if selected_sport=='Multi' else 'Log Bet'
         if selected_sport in SPORTS:st.session_state['ssport']=selected_sport
         st.rerun()
+
 
