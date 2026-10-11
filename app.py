@@ -1,10 +1,11 @@
 
 
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
-import sqlite3, os, json, math, requests, html
+import sqlite3, os, json, math, requests, html, tempfile, hashlib
 from datetime import datetime, date
 from pathlib import Path
 
@@ -143,7 +144,58 @@ st.markdown("""<style>
 
 </style>""",unsafe_allow_html=True)
 
-DB = Path("betting.db")
+try:
+    storage_path = os.environ.get("STAKELAB_DATA_DIR") or st.secrets.get("STAKELAB_DATA_DIR", "")
+except Exception:
+    storage_path = os.environ.get("STAKELAB_DATA_DIR", "")
+DB = Path(storage_path).expanduser() / "betting.db" if storage_path else Path("betting.db")
+DB.parent.mkdir(parents=True, exist_ok=True)
+
+def database_backup():
+    """SQLite's backup API captures a consistent snapshot, including committed WAL data."""
+    with tempfile.TemporaryDirectory() as folder:
+        snapshot = Path(folder) / "backup.db"
+        with sqlite3.connect(DB) as source, sqlite3.connect(snapshot) as target:
+            source.backup(target)
+        return snapshot.read_bytes()
+
+def validate_backup(payload):
+    if not payload.startswith(b"SQLite format 3\x00"):
+        raise ValueError("Choose a StakeLab SQLite backup (.db).")
+    with tempfile.TemporaryDirectory() as folder:
+        candidate = Path(folder) / "candidate.db"
+        candidate.write_bytes(payload)
+        try:
+            with sqlite3.connect(candidate) as source:
+                if source.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise ValueError("This backup failed its integrity check.")
+                required = {"bets", "bankroll_settings", "multi_legs", "weekly_budget_settings", "weekly_budget_weeks", "weekly_budget_spend"}
+                tables = {r[0] for r in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if not required.issubset(tables):
+                    raise ValueError("This file is not a complete current StakeLab backup.")
+                for table in required:
+                    with sqlite3.connect(DB) as current_db:
+                        current = {r[1] for r in current_db.execute(f'PRAGMA table_info({table})')}
+                    uploaded = {r[1] for r in source.execute(f'PRAGMA table_info({table})')}
+                    if not current.issubset(uploaded):
+                        raise ValueError(f"The backup has an incompatible {table} schema.")
+                return source.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
+        except sqlite3.DatabaseError as exc:
+            raise ValueError("This backup cannot be read safely.") from exc
+
+def restore_backup(payload):
+    validate_backup(payload)
+    # Keep a recovery snapshot before replacing any user data.
+    recovery = DB.parent / "backups"
+    recovery.mkdir(exist_ok=True)
+    previous = recovery / ("before-restore-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".db")
+    previous.write_bytes(database_backup())
+    with tempfile.TemporaryDirectory() as folder:
+        candidate = Path(folder) / "candidate.db"
+        candidate.write_bytes(payload)
+        with sqlite3.connect(candidate) as source, sqlite3.connect(DB) as target:
+            source.backup(target)
+    return previous
 SPORTS = ["NBA","NFL","NHL","MLB","NCAAB","NCAAF","AFL","Soccer","Tennis","Horses","Greyhounds","Other"]
 BET_TYPES = {
     "NBA":["3PT","Points","Rebounds","Assists","PRA","Steals","Blocks","Threes+","Moneyline","Spread","Total","Other"],
@@ -1117,7 +1169,7 @@ def icon_data(name):
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#42bdff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+ICON_PATHS.get(name,ICON_PATHS['ball'])+'</svg>'
     return 'data:image/svg+xml;base64,'+base64.b64encode(svg.encode()).decode()
 
-nav_items=["Dashboard","Log Bet","Multis","Results & Notes","Performance","Monthly Reports","Bet Calendar","Bankroll","Bet History","Today","Analyse Bet","Data Hub","Settings"]
+nav_items=["Dashboard","Log Bet","Multis","Results & Notes","Performance","Monthly Reports","Bet Calendar","Bankroll","Bet History","Today","Analyse Bet","Settings"]
 if "requested_nav" in st.session_state:
     st.session_state["main_nav"]=st.session_state.pop("requested_nav")
 if st.session_state.get("main_nav") not in nav_items:
@@ -1134,7 +1186,7 @@ for container,sports in [('sport_navigation',['All']+SPORTS+['Multi']),('entry_s
     for index,sport_name in enumerate(sports,1):
         icon_name=sport_name if sport_name in ICON_PATHS else 'layers' if sport_name=='Multi' else 'chart' if sport_name=='All' else 'plus' if sport_name=='Other' else 'ball'
         icon_styles.append(f'.st-key-{container} [role="radiogroup"] > div:nth-child({index}) label::before,.st-key-{container} [role="radiogroup"] > label:nth-child({index})::before{{background-image:url("{icon_data(icon_name)}")}}')
-nav_icons=['chart','plus','layers','notes','chart','report','calendar','wallet','notes','clock','chart','database','settings']
+nav_icons=['chart','plus','layers','notes','chart','report','calendar','wallet','notes','clock','chart','settings']
 for index,name in enumerate(nav_icons,1):
     icon_styles.append(f'.st-key-top_navigation [role="radiogroup"] > div:nth-child({index}) label::before,.st-key-top_navigation [role="radiogroup"] > label:nth-child({index})::before{{background-image:url("{icon_data(name)}")}}')
 for index,name in enumerate(['ticket','layers'],1):
@@ -2139,6 +2191,36 @@ ODDS_API_KEY = "..."
 
 if page=="Settings":
     st.markdown("<div class='page-kicker'>Preferences & system status</div><div class='page-title'>Settings</div><div class='page-copy'>Check your tracker and connected data sources.</div>",unsafe_allow_html=True)
+    st.markdown("### Backup & restore")
+    st.caption("A full backup includes bets, multi legs, reasoning, tags, results, bankroll settings and the weekly allowance ledger. Keep a downloaded copy somewhere safe.")
+    st.download_button("Download full backup", database_backup(), file_name=f"StakeLab-backup-{date.today().isoformat()}.db", mime="application/octet-stream", key="full_backup")
+    uploaded_backup = st.file_uploader("Choose a StakeLab backup", type=["db"], key="restore_upload")
+    if uploaded_backup is not None:
+        payload = uploaded_backup.getvalue()
+        try:
+            backup_count = validate_backup(payload)
+            st.info(f"Valid backup: {backup_count} bets. Restore replaces your current tracker data, including weekly spending.")
+            confirmed = st.checkbox("Replace my current tracker with this backup", key="restore_confirm_"+hashlib.sha256(payload).hexdigest())
+            if st.button("Restore backup", disabled=not confirmed, key="restore_backup"):
+                restore_backup(payload)
+                for state_key in list(st.session_state):
+                    if state_key not in {"main_nav", "top_sport"}:
+                        del st.session_state[state_key]
+                st.session_state["restore_completed"] = True
+                st.rerun()
+        except ValueError as exc:
+            st.error(str(exc))
+    if st.session_state.pop("restore_completed", False):
+        st.success("Backup restored. A recovery copy of the previous database was kept on this host.")
+    st.markdown("### Durable storage")
+    if storage_path:
+        st.info("A storage directory is configured. It is durable only if your host mounts persistent storage at that directory.")
+    else:
+        st.warning("Local storage is active. Download backups regularly; this host may lose local files on restart or redeploy.")
+    with st.expander("Configure persistent storage"):
+        st.write("On a host with a persistent disk, point this setting at its mounted directory. Setting a path alone does not make Streamlit Community Cloud storage permanent.")
+        st.code('STAKELAB_DATA_DIR = "/your/persistent/mount/stakelab"', language="toml")
+        st.caption("Download your backup before changing hosts or storage paths, then restore it into the new installation.")
     c1,c2=st.columns(2,gap="large")
     with c1:
         st.markdown("### Bet tracker")
@@ -2153,7 +2235,7 @@ if page=="Settings":
         st.dataframe(dc,use_container_width=True,hide_index=True) if not dc.empty else st.info("No structured sports data stored yet.")
         st.markdown("### Database")
         st.caption(f"Local database: {DB}")
-        st.warning("Streamlit Community Cloud local SQLite storage may reset on redeploy/restart. Move to a persistent cloud database before relying on this for permanent history.")
+        st.caption("Storage and backup controls are above.")
 
 # SLEEK PREMIUM THEME
 st.markdown("""
@@ -2470,5 +2552,22 @@ if page=="Dashboard" and selected_sport!="All":
         st.session_state['requested_nav']='Multis' if selected_sport=='Multi' else 'Log Bet'
         if selected_sport in SPORTS:st.session_state['ssport']=selected_sport
         st.rerun()
+
+# Compact mobile layout; calendar keeps its own seven-column layout.
+st.markdown("""<style>
+@media(max-width:640px){
+.block-container{padding-left:.65rem!important;padding-right:.65rem!important}
+.top-shell{flex-wrap:wrap;gap:8px;padding:10px}
+.brand{min-width:0}.search-shell{display:none}.status-strip{justify-content:flex-start;width:100%}
+.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.kpi-card{min-width:0;padding:10px}.kpi-value{font-size:1.25rem}
+.st-key-top_navigation [role="radiogroup"]{flex-wrap:nowrap!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:12px}
+.st-key-top_navigation label{min-height:44px!important;padding:9px 10px!important}
+.st-key-sport_navigation label,.st-key-entry_sport_buttons label{min-height:44px!important;padding:8px 10px!important}
+[data-testid="stMetric"]{padding:10px!important}[data-testid="stMetricValue"]{font-size:1.4rem!important}
+[data-testid="stDataFrame"]{max-width:100%;overflow-x:auto}
+[data-testid="stForm"]{padding:.7rem!important}
+}
+</style>""",unsafe_allow_html=True)
 
 
