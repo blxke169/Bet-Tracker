@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -142,7 +143,7 @@ st.markdown("""<style>
 </style>""",unsafe_allow_html=True)
 
 DB = Path("betting.db")
-SPORTS = ["NBA","NFL","NHL","MLB","NCAAB","NCAAF","AFL","Soccer","Tennis","Horses","Greyhounds"]
+SPORTS = ["NBA","NFL","NHL","MLB","NCAAB","NCAAF","AFL","Soccer","Tennis","Horses","Greyhounds","Other"]
 BET_TYPES = {
     "NBA":["3PT","Points","Rebounds","Assists","PRA","Steals","Blocks","Threes+","Moneyline","Spread","Total","Other"],
     "NFL":["Passing Yards","Rushing Yards","Receiving Yards","Receptions","TD","Pass Attempts","Moneyline","Spread","Total","Other"],
@@ -221,7 +222,13 @@ def clv(bet, close):
 
 def q(sql,args=()):
     c=conn(); rows=c.execute(sql,args).fetchall(); c.close()
-    return pd.DataFrame([dict(r) for r in rows])
+    frame=pd.DataFrame([dict(r) for r in rows])
+    if not frame.empty and {'sport','factors_json'}.issubset(frame.columns):
+        def custom_name(value):
+            try:return str(json.loads(value or '{}').get('custom_sport',''))
+            except (ValueError,TypeError,AttributeError):return ''
+        frame['Custom sport']=frame.factors_json.map(custom_name)
+    return frame
 
 def execsql(sql,args=()):
     c=conn(); cur=c.execute(sql,args); c.commit(); out=cur.lastrowid; c.close(); return out
@@ -1084,11 +1091,11 @@ st.markdown("<div class='tracker-brand sl-brand'><img src='data:image/svg+xml;ba
 # Small vector icons are embedded, so app.py remains the only replacement file.
 import base64
 ICON_PATHS={
-    'NBA':'<circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4v24M7 7c8 5 8 13 0 18M25 7c-8 5-8 13 0 18"/>',
-    'NFL':'<path d="M4 27C2 13 12 3 28 5c2 15-9 25-24 22Z"/><path d="m10 22 12-12m-10 7 5 5m-2-9 5 5m-2-9 5 5M5 18l8 9M20 5l7 8"/>',
-    'AFL':'<ellipse cx="16" cy="16" rx="8" ry="14" transform="rotate(45 16 16)"/><path d="m8 24 16-16m-13 8 5 5m-2-8 5 5m-2-8 5 5" stroke="#e3a1a7"/>',
-    'Horses':'<path d="M7 29c0-8 2-15 7-20l3-3 1-4 3 6 5 4 3 6-3 3-7-4-4 3 1 9M13 8l-5 5-3 11M20 12h.1"/>',
-    'Greyhounds':'<path d="m2 17 5-1 5-5 6 1 4-4 2-4 2 4 4 3-1 3-6-1-3 8-6 1-4-4-3 3-5 6m13-7 2 7 6 2m-3-10 6 5 5-1M6 17l-4-3"/>',
+    'NBA':'<circle cx="16" cy="16" r="12.5"/><path d="M3.5 16h25M16 3.5v25M7.2 7.2c7 4 7 13.6 0 17.6M24.8 7.2c-7 4-7 13.6 0 17.6"/>',
+    'NFL':'<g transform="rotate(-32 16 16)"><path d="M2 16C8 4 24 4 30 16C24 28 8 28 2 16Z"/><path d="M7 9v14M25 9v14M10 16h12M12 13.5v5M16 13.5v5M20 13.5v5"/></g>',
+    'AFL':'<g transform="rotate(-32 16 16)"><ellipse cx="16" cy="16" rx="14" ry="8.5" stroke="#42bdff"/><path d="M3 16c7-4 19-4 26 0M3 16c7 4 19 4 26 0" stroke="#42bdff"/><text x="16" y="18" fill="#f1bdc3" stroke="none" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="bold">AFL</text></g>',
+    'Horses':'<path d="M6 29C5 20 7 12 14 7L17 5l1-3 2 5 3 2 5 7v3l-3 2-5-3-3 2 3 9M14 7c-5 1-8 6-9 12M17 11l3 1M25 16h1"/><path d="M17 20c-2 2-3 5-2 9"/>',
+    'Greyhounds':'<g transform="translate(0 1)"><path d="M2 15c3 1 5-2 8-3 4-2 7 1 10 0l4-4 1-3 2 3 4 2v2l-5 1-3 5c-1 3-3 4-5 3l-4-3-4 1-4 5-4 1 5-7 1-3"/><path d="m13 18 3 8 5 1m1-8 5 5 4-1M9 15l-5-2-3-3"/></g>',
     'chart':'<path d="M5 4v24h24M9 21l6-7 5 3 8-11"/>',
     'plus':'<circle cx="16" cy="16" r="12"/><path d="M16 9v14M9 16h14"/>',
     'layers':'<path d="m16 3 13 7-13 7-13-7Zm-13 15 13 7 13-7M3 24l13 7 13-7"/>',
@@ -1124,7 +1131,7 @@ if budget['active']:
 icon_styles=[]
 for container,sports in [('sport_navigation',['All']+SPORTS+['Multi']),('entry_sport_buttons',SPORTS)]:
     for index,sport_name in enumerate(sports,1):
-        icon_name=sport_name if sport_name in ICON_PATHS else 'layers' if sport_name=='Multi' else 'chart' if sport_name=='All' else 'ball'
+        icon_name=sport_name if sport_name in ICON_PATHS else 'layers' if sport_name=='Multi' else 'chart' if sport_name=='All' else 'plus' if sport_name=='Other' else 'ball'
         icon_styles.append(f'.st-key-{container} [role="radiogroup"] label:nth-child({index})::before{{background-image:url("{icon_data(icon_name)}")}}')
 nav_icons=['chart','plus','layers','notes','chart','report','calendar','wallet','notes','clock','chart','database','settings']
 for index,name in enumerate(nav_icons,1):
@@ -1362,6 +1369,9 @@ def bet_type_statistics(bets):
     data=bets[bets.result.isin(["Won","Lost","Push"])].copy()
     if data.empty:return pd.DataFrame()
     data['bet_type']=data.bet_type.fillna('Unspecified').replace('','Unspecified')
+    if 'Custom sport' in data.columns:
+        other=data.sport.eq('Other')&data['Custom sport'].ne('')
+        data.loc[other,'sport']='Other · '+data.loc[other,'Custom sport']
     for column in ['stake','pnl','clv']:data[column]=pd.to_numeric(data[column],errors='coerce')
     for result in ['Won','Lost','Push']:data[result]=data.result.eq(result).astype(int)
     grouped=data.groupby(['sport','bet_type'],dropna=False).agg(Bets=('id','count'),Wins=('Won','sum'),Losses=('Lost','sum'),Pushes=('Push','sum'),Stake=('stake','sum'),Profit=('pnl','sum'),CLV=('clv','mean'),CLV_samples=('clv','count')).reset_index()
@@ -1646,7 +1656,7 @@ def tag_picker(sport,prefix):
             st.session_state[prefix+"_new_tag"]=""
     st.markdown("#### Custom tags")
     custom=q("SELECT name FROM custom_tag_catalog WHERE sport=? ORDER BY name",(sport,))
-    choices=list(dict.fromkeys(SPORT_TAGS.get(sport,[])+GENERAL_TAGS+(custom.name.tolist() if not custom.empty else [])))
+    choices=list(dict.fromkeys(([] if sport=='Other' else SPORT_TAGS.get(sport,[])+GENERAL_TAGS)+(custom.name.tolist() if not custom.empty else [])))
     if hasattr(st,"pills"):
         picked=st.pills(f"Tags for {sport}",choices,selection_mode="multi",key=prefix+"_tags_"+sport)
     else:
@@ -1669,13 +1679,14 @@ if page in ("Log Bet","Multis"):
     if wager_type=="Single":
         with st.container(key="entry_sport_buttons"):
             sport=st.radio("Sport",SPORTS,horizontal=True,key="ssport",label_visibility="collapsed")
+        custom_sport=st.text_input('Custom sport name',key='scustom_sport',placeholder='e.g. Cricket, Boxing, Esports') if sport=='Other' else ''
         c1,c2,c3=st.columns(3)
         event_date=c1.date_input("Event date",date.today(),key="sdate")
 
         league=c3.text_input("League",value="",key="sleague")
 
         c1,c2,c3=st.columns(3)
-        bt=c1.selectbox("Bet type",BET_TYPES.get(sport,["Other"]),key="sbt")
+        bt=c1.text_input('Custom bet type',key='scustom_type',placeholder='e.g. Runs, Map winner, Round total') if sport=='Other' else c1.selectbox("Bet type",BET_TYPES.get(sport,["Other"]),key="sbt")
         market=c2.text_input("Market",placeholder="Over/Under, handicap, win, place...",key="smarket")
         selection=c3.text_input("Selection / Player / Runner",key="ssel")
 
@@ -1694,10 +1705,12 @@ if page in ("Log Bet","Multis"):
         source_note=st.text_input("Data source / note",value="Manual entry",key="ssource")
 
         if st.button("Save Single",use_container_width=True,key="save_single"):
+            if sport=='Other' and (not custom_sport.strip() or not bt.strip()):
+                st.error('Enter a custom sport name and bet type.');st.stop()
             cv=clv(odds,close)
             bet_id=attempt_budget_save("""INSERT INTO bets(placed_at,event_date,sport,league,event,book,bet_type,market,selection,line,odds,closing_odds,stake,result,pnl,reasoning,post_game_reason,clv,ai_review,process_grade,factors_json,source_note)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (datetime.now().isoformat(),str(event_date),sport,league,event,book,bt,market,selection,line,odds,close,stake,"Pending",0,reasoning,"",cv,"","",json.dumps({"wager_type":"single","tags":tags}),source_note))
+            (datetime.now().isoformat(),str(event_date),sport,league,event,book,bt.strip(),market,selection,line,odds,close,stake,"Pending",0,reasoning,"",cv,"","",json.dumps({"wager_type":"single","tags":tags,"custom_sport":custom_sport.strip()}),source_note))
             if bet_id is None:st.stop()
             notify_saved("Bet saved")
     else:
@@ -1717,7 +1730,8 @@ if page in ("Log Bet","Multis"):
             st.markdown(f"#### Leg {i+1}")
             a,b,c,d=st.columns(4)
             lsport=a.selectbox("Sport",SPORTS,key=f"lsport{i}")
-            lbet_type=b.selectbox("Bet type",BET_TYPES.get(lsport,["Other"]),key=f"lbt{i}")
+            lbet_type=b.text_input('Custom bet type',key=f'lcustom_type{i}') if lsport=='Other' else b.selectbox("Bet type",BET_TYPES.get(lsport,["Other"]),key=f"lbt{i}")
+            lcustom=st.text_input(f'Leg {i+1} custom sport name',key=f'lcustom_sport{i}') if lsport=='Other' else ''
             levent=c.text_input("Event",key=f"levent{i}")
             lodds=d.number_input("Odds",min_value=1.01,value=1.50,step=0.01,key=f"lodds{i}")
             e,f,g,h=st.columns(4)
@@ -1726,6 +1740,7 @@ if page in ("Log Bet","Multis"):
             lline=g.text_input("Line",key=f"lline{i}")
             lnotes=h.text_input("Notes",key=f"lnotes{i}")
             legs.append((lsport,lbet_type,levent,lmarket,lselection,lline,lodds,lnotes))
+            if lsport=='Other':legs[-1]=legs[-1]+(lcustom.strip(),)
 
         source_note=st.text_input("Data source / note",value="Manual entry",key="msource")
         combined=math.prod([x[6] for x in legs]) if legs else 1.0
@@ -1735,6 +1750,8 @@ if page in ("Log Bet","Multis"):
         m3.metric("Potential profit",money(stake*(combined-1)))
 
         if st.button("Save Multi",use_container_width=True,key="save_multi"):
+            if any(leg[0]=='Other' and (not leg[1].strip() or not leg[8]) for leg in legs):
+                st.error('Enter a sport name and bet type for every Other leg.');st.stop()
             label=multi_name.strip() or f"{len(legs)}-Leg Multi"
             bet_id=attempt_budget_save("""INSERT INTO bets(placed_at,event_date,sport,league,event,book,bet_type,market,selection,line,odds,closing_odds,stake,result,pnl,reasoning,post_game_reason,clv,ai_review,process_grade,factors_json,source_note)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -1742,7 +1759,7 @@ if page in ("Log Bet","Multis"):
             if bet_id is None:st.stop()
             for i,leg in enumerate(legs,1):
                 execsql("INSERT INTO multi_legs(bet_id,leg_no,sport,bet_type,event,market,selection,line,odds,closing_odds,result,clv,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (bet_id,i,leg[0],leg[1],leg[2],leg[3],leg[4],leg[5],leg[6],None,"Pending",None,leg[7]))
+                        (bet_id,i,leg[0],leg[1],leg[2],leg[3],leg[4],leg[5],leg[6],None,"Pending",None,(f"Sport: {leg[8]}\n" if leg[0]=='Other' else '')+leg[7]))
             notify_saved("Multi saved")
 
 # PRE-BET ANALYST
@@ -2375,7 +2392,7 @@ if page=="Bet Calendar":
                 st.write("Tags: "+(", ".join(saved_bet_tags(bet.factors_json)) or "None"))
                 st.write("Result notes: "+str(bet.post_game_reason or "Not recorded"))
                 if bet.sport=="Multi":
-                    legs=q("SELECT sport,event,selection,market,odds,result FROM multi_legs WHERE bet_id=? ORDER BY leg_no",(int(bet.id),))
+                    legs=q("SELECT sport,event,selection,market,odds,result,notes FROM multi_legs WHERE bet_id=? ORDER BY leg_no",(int(bet.id),))
                     if not legs.empty:st.dataframe(legs,hide_index=True,use_container_width=True)
         st.download_button("Download this day's bets",daily.drop(columns=["ai_review","process_grade","calendar_date"],errors="ignore").to_csv(index=False),file_name=f"stakelab_{chosen.isoformat()}_bets.csv",mime="text/csv")
 
@@ -2443,8 +2460,9 @@ if page=="Dashboard" and selected_sport!="All":
         recent=bets.sort_values(['event_date','id'],ascending=False).head(20).copy()
         recent['Tags']=recent.factors_json.map(saved_bet_tags).map(lambda t:', '.join(t))
         recent.loc[~recent.result.isin(['Won','Lost','Push']),'pnl']=None
-        st.dataframe(recent[['event_date','event','selection','bet_type','market','odds','stake','result','pnl','clv','Tags']],hide_index=True,use_container_width=True)
+        st.dataframe(recent[['event_date','Custom sport','event','selection','bet_type','market','odds','stake','result','pnl','clv','Tags']],hide_index=True,use_container_width=True)
     if st.button('Log '+selected_sport+' bet',key='sport_log',use_container_width=True):
         st.session_state['requested_nav']='Multis' if selected_sport=='Multi' else 'Log Bet'
         if selected_sport in SPORTS:st.session_state['ssport']=selected_sport
         st.rerun()
+
