@@ -2,6 +2,7 @@
 
 
 
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -1267,7 +1268,7 @@ if page=="Today":
             st.info("No open bets right now.")
         else:
             cols=["event_date","sport","event","bet_type","selection","odds","stake","result"]
-            st.dataframe(s["pending"][cols].sort_values(["event_date","id"],ascending=False),use_container_width=True,hide_index=True,height=260)
+            st.dataframe(s["pending"].sort_values(["event_date","id"],ascending=False)[cols],use_container_width=True,hide_index=True,height=260)
 
         st.markdown("<div class='panel-title'>Today's Bets</div>",unsafe_allow_html=True)
         if todays_bets.empty:
@@ -2569,5 +2570,6 @@ st.markdown("""<style>
 [data-testid="stForm"]{padding:.7rem!important}
 }
 </style>""",unsafe_allow_html=True)
+
 
 
